@@ -2,10 +2,7 @@ coverage
 .nyc_output
 node_modules
 dist
-packages/configtest/lib
-packages/generators/lib
-packages/info/lib
-packages/serve/lib
+packages/*/lib
 test/**/dist/
 test/**/bin/
 test/**/binary/
@@ -13,5 +10,5 @@ test/**/index.js
 test/build/config/error-commonjs/syntax-error.js
 test/build/config/error-mjs/syntax-error.mjs
 test/build/config/error-array/webpack.config.js
+test/build/config-format/esm-require-await/webpack.config.js
 test/configtest/with-config-path/syntax-error.config.js
-packages/generators/src/utils/__tests__/recursive-parser/__testfixtures__

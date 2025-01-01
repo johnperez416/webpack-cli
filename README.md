@@ -7,41 +7,40 @@
 <h1 align="center">webpack CLI</h1>
 
 <p align="center">
-  The official CLI of webpack
+  The official Command Line Interface of webpack
 </p>
 <br>
 
 [![npm][npm]][npm-url]
 [![Build Status][build-status]][build-status-url]
 [![codecov][codecov-badge]][codecov-url]
-[![Dependencies][deps]][deps-url]
 [![Install Size][size]][size-url]
-[![Chat on gitter][chat]][chat-url]
+[![GitHub Discussions][discussion]][discussion-url]
+[![Discord][discord-invite]][discord-url]
 
 ## Table of Contents
 
--   [About](#about)
-    -   [How to install](#how-to-install)
--   [Supported arguments and commands](#supported-arguments-and-commands)
--   [Packages](#packages)
-    -   [Commands](#commands)
-    -   [Utilities](#utilities)
--   [Getting started](#getting-started)
--   [Exit codes and their meanings](#exit-codes-and-their-meanings)
--   [Contributing and Internal Documentation](#contributing-and-internal-documentation)
--   [Open Collective](#open-collective)
+- [Introduction](#introduction)
+  - [How to install](#how-to-install)
+- [Supported arguments and commands](#supported-arguments-and-commands)
+- [Packages](#packages)
+  - [Commands](#commands)
+- [Getting started](#getting-started)
+- [Exit codes and their meanings](#exit-codes-and-their-meanings)
+- [Contributing and Internal Documentation](#contributing-and-internal-documentation)
+- [Funding](#funding)
 
-## About
+## Introduction
 
-webpack CLI provides the interface of options webpack uses in its configuration file. The CLI options override options passed in the configuration file.
+Webpack CLI provides the interface of options webpack uses in its configuration file. The CLI options override options passed in the configuration file.
 
 The CLI provides a rich set of commands that helps you develop your application faster.
 
 ### How to install
 
-When you have followed the [Getting Started](https://webpack.js.org/guides/getting-started/) guide of webpack then webpack CLI is already installed!
+If you have followed the [Getting Started](https://webpack.js.org/guides/getting-started/) guide of webpack then webpack CLI is already installed!
 
-Otherwise `npm install --save-dev webpack-cli` or `yarn add webpack-cli --dev` will install it.
+Otherwise `npm install --save-dev webpack-cli`, `yarn add webpack-cli --dev` or `pnpm add --D webpack-cli` will install it.
 
 ## Supported arguments and commands
 
@@ -49,43 +48,36 @@ Get to know what are the available commands and arguments [here](./packages/webp
 
 ## Packages
 
-We organize webpack CLI as a multi-package repository using [lerna](https://github.com/lerna/lerna). The main CLI logic resides in `packages/webpack-cli`, while commands supported by the CLI, has dedicated subfolders in the folder `packages`. A summary of supported commands is described below.
+We organize webpack CLI as a multi-package repository using [lerna](https://github.com/lerna/lerna). The main CLI logic using options, resides in [`packages/webpack-cli`](https://github.com/webpack/webpack-cli/tree/master/packages/webpack-cli), while commands supported by the CLI, has dedicated subfolders in the folder [`packages`](https://github.com/webpack/webpack-cli/tree/master/packages).
+
+A summary of supported commands is described below.
 
 ### Commands
 
 Supporting developers is an important task for webpack CLI.
 Thus, webpack CLI provides different commands for many common tasks.
 
--   `build|bundle|b [entries...] [options]` - Run webpack (default command, can be omitted).
--   [`configtest|t [config-path]`](./packages/configtest/README.md#webpack-cli-configtest) - Validate a webpack configuration.
--   `help|h [command] [option]` - Display help for commands and options.
--   [`init|create|new|c|n [generation-path] [options]`](./packages/generators/INIT.md#webpack-cli-init) - Create a new webpack project.
--   [`info|i [options]`](./packages/info/README.md#webpack-cli-info) - Returns information related to the local environment.
--   [`migrate|m <config-path> [new-config-path]`](https://www.npmjs.com/package/@webpack-cli/migrate) - Migrate project from one version to another.
--   [`plugin|p [output-path] [options]`](./packages/generators#generators) - Initiate new plugin project.
--   [`loader|l [output-path] [options]`](./packages/generators#generators) - Initiate new loader project.
--   [`serve|server|s [entries...] [options]`](./packages/serve/README.md#webpack-cli-serve) - Use webpack with a development server that provides live reloading.
--   `version|v [commands...]` - Output the version number of `webpack`, `webpack-cli`, `webpack-dev-server`, and commands
--   `watch|w [entries...] [options]` - Run webpack and watch for files changes.
-
-### Utilities
-
-The project has several utility packages which are used by other commands
-
--   [`generators`](./packages/generators/README.md) - Contains all webpack-cli related yeoman generators.
+- [`build|bundle|b [entries...] [options]`](https://webpack.js.org/api/cli/#build) - Run webpack (default command, can be omitted).
+- [`configtest|t [config-path]`](https://webpack.js.org/api/cli/#configtest) - Validate a webpack configuration.
+- [`help|h [command] [option]`](https://webpack.js.org/api/cli/#help) - Display help for commands and options.
+- [`info|i [options]`](https://webpack.js.org/api/cli/#info) - Returns information related to the local environment.
+- [`serve|server|s [entries...] [options]`](https://webpack.js.org/api/cli/#serve) - Use webpack with a development server that provides live reloading.
+- [`version|v [commands...]`](https://webpack.js.org/api/cli/#version) - Output the version number of `webpack`, `webpack-cli`, `webpack-dev-server`, and commands.
+- [`watch|w [entries...] [options]`](https://webpack.js.org/api/cli/#watch) - Run webpack and watch for files changes.
 
 ## Getting started
 
-When you have followed the [Getting Started](https://webpack.js.org/guides/getting-started/) guide of webpack, then webpack CLI is already installed!
+If you have followed the [Getting Started](https://webpack.js.org/guides/getting-started/) guide of webpack, then webpack CLI is already installed!
 
-Otherwise, you would need to install webpack CLI and the packages you want to use. If you want to use the `init` command to create a new configuration file:
+Otherwise, you would need to install webpack CLI and the packages you want to use.
+
+If you want to create a fresh webpack project run the command as stated below:
 
 ```sh
-npm i webpack-cli @webpack-cli/init
-npx webpack-cli init
+npx create-webpack-app init
 ```
 
-You will be prompted for some questions about which features you want to use, such as `scss`, PWA support or multiple entry-points.
+You will then be prompted for some questions about which features you want to use, such as `scss`, `typescript`, `PWA` support or other features.
 
 ## Exit codes and their meanings
 
@@ -99,9 +91,9 @@ You will be prompted for some questions about which features you want to use, su
 
 The webpack family welcomes any contributor, small or big. We are happy to elaborate, guide you through the source code and find issues you might want to work on! To get started have a look at our [contribution documentation](./.github/CONTRIBUTING.md).
 
-## Open Collective
+## Funding
 
-If you like **webpack**, please consider donating to our [Open Collective](https://opencollective.com/webpack) to help us maintain it.
+If you like **webpack**, please consider donating through [Open Collective](https://opencollective.com/webpack) to help us keep the project relevant.
 
 [npm]: https://img.shields.io/npm/v/webpack-cli.svg
 [npm-url]: https://www.npmjs.com/package/webpack-cli
@@ -109,12 +101,12 @@ If you like **webpack**, please consider donating to our [Open Collective](https
 [build-status-url]: https://github.com/webpack/webpack-cli/actions
 [codecov-badge]: https://codecov.io/gh/webpack/webpack-cli/branch/master/graph/badge.svg?token=6B6NxtsZc3
 [codecov-url]: https://codecov.io/gh/webpack/webpack-cli
-[deps]: https://img.shields.io/david/webpack/webpack.svg
-[deps-url]: https://david-dm.org/webpack/webpack-cli
 [size]: https://packagephobia.com/badge?p=webpack-cli
 [size-url]: https://packagephobia.com/result?p=webpack-cli
-[chat]: https://badges.gitter.im/webpack/webpack.svg
-[chat-url]: https://gitter.im/webpack/webpack
+[discussion]: https://img.shields.io/github/discussions/webpack/webpack
+[discussion-url]: https://github.com/webpack/webpack/discussions
+[discord-invite]: https://img.shields.io/discord/1180618526436888586?style=flat&logo=discord&logoColor=white&label=discord
+[discord-url]: https://discord.gg/ARKBCXBu
 
 ## Code of Conduct
 

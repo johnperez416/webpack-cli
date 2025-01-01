@@ -1,5 +1,3 @@
-/* eslint-disable node/no-unpublished-require */
-
 "use strict";
 
 const os = require("os");
@@ -7,44 +5,32 @@ const stripAnsi = require("strip-ansi");
 const path = require("path");
 const fs = require("fs");
 const execa = require("execa");
-const internalIp = require("internal-ip");
 const { exec } = require("child_process");
 const { node: execaNode } = execa;
 const { Writable } = require("readable-stream");
 const concat = require("concat-stream");
-const { cli, version } = require("webpack");
-const isWebpack5 = version.startsWith("5");
-
-let devServerVersion;
-
-try {
-    devServerVersion = require("webpack-dev-server/package.json").version;
-} catch (error) {
-    // Nothing
-}
-
-const isDevServer4 = devServerVersion && devServerVersion.startsWith("4");
+const { cli } = require("webpack");
 
 const WEBPACK_PATH = path.resolve(__dirname, "../../packages/webpack-cli/bin/cli.js");
 const ENABLE_LOG_COMPILATION = process.env.ENABLE_PIPE || false;
 const isWindows = process.platform === "win32";
 
 const hyphenToUpperCase = (name) => {
-    if (!name) {
-        return name;
-    }
+  if (!name) {
+    return name;
+  }
 
-    return name.replace(/-([a-z])/g, function (g) {
-        return g[1].toUpperCase();
-    });
+  return name.replace(/-([a-z])/g, function (g) {
+    return g[1].toUpperCase();
+  });
 };
 
 const processKill = (process) => {
-    if (isWindows) {
-        exec("taskkill /pid " + process.pid + " /T /F");
-    } else {
-        process.kill();
-    }
+  if (isWindows) {
+    exec("taskkill /pid " + process.pid + " /T /F");
+  } else {
+    process.kill();
+  }
 };
 
 /**
@@ -56,17 +42,17 @@ const processKill = (process) => {
  * @returns {Promise}
  */
 const createProcess = (cwd, args, options) => {
-    const { nodeOptions = [] } = options;
-    const processExecutor = nodeOptions.length ? execaNode : execa;
+  const { nodeOptions = [] } = options;
+  const processExecutor = nodeOptions.length ? execaNode : execa;
 
-    return processExecutor(WEBPACK_PATH, args, {
-        cwd: path.resolve(cwd),
-        reject: false,
-        stdio: ENABLE_LOG_COMPILATION ? "inherit" : "pipe",
-        maxBuffer: Infinity,
-        env: { WEBPACK_CLI_HELP_WIDTH: 1024 },
-        ...options,
-    });
+  return processExecutor(WEBPACK_PATH, args, {
+    cwd: path.resolve(cwd),
+    reject: false,
+    stdio: ENABLE_LOG_COMPILATION ? "inherit" : "pipe",
+    maxBuffer: Infinity,
+    env: { WEBPACK_CLI_HELP_WIDTH: 1024 },
+    ...options,
+  });
 };
 
 /**
@@ -78,7 +64,7 @@ const createProcess = (cwd, args, options) => {
  * @returns {Promise}
  */
 const run = async (cwd, args = [], options = {}) => {
-    return createProcess(cwd, args, options);
+  return createProcess(cwd, args, options);
 };
 
 /**
@@ -90,7 +76,7 @@ const run = async (cwd, args = [], options = {}) => {
  * @returns {Promise}
  */
 const runAndGetProcess = (cwd, args = [], options = {}) => {
-    return createProcess(cwd, args, options);
+  return createProcess(cwd, args, options);
 };
 
 /**
@@ -102,46 +88,63 @@ const runAndGetProcess = (cwd, args = [], options = {}) => {
  * @returns {Object} The webpack output or Promise when nodeOptions are present
  */
 const runWatch = (cwd, args = [], options = {}) => {
-    return new Promise((resolve, reject) => {
-        const process = createProcess(cwd, args, options);
-        const outputKillStr = options.killString || /webpack \d+\.\d+\.\d/;
+  return new Promise((resolve, reject) => {
+    const process = createProcess(cwd, args, options);
+    const outputKillStr = options.killString || /webpack \d+\.\d+\.\d/;
+    const stdoutKillStr = options.stdoutKillStr;
+    const stderrKillStr = options.stderrKillStr;
 
-        process.stdout.pipe(
-            new Writable({
-                write(chunk, encoding, callback) {
-                    const output = stripAnsi(chunk.toString("utf8"));
+    let isStdoutDone = false;
+    let isStderrDone = false;
 
-                    if (outputKillStr.test(output)) {
-                        processKill(process);
-                    }
+    process.stdout.pipe(
+      new Writable({
+        write(chunk, encoding, callback) {
+          const output = stripAnsi(chunk.toString("utf8"));
 
-                    callback();
-                },
-            }),
-        );
+          if (stdoutKillStr && stdoutKillStr.test(output)) {
+            isStdoutDone = true;
+          } else if (!stdoutKillStr && outputKillStr.test(output)) {
+            processKill(process);
+          }
 
-        process.stderr.pipe(
-            new Writable({
-                write(chunk, encoding, callback) {
-                    const output = stripAnsi(chunk.toString("utf8"));
+          if (isStdoutDone && isStderrDone) {
+            processKill(process);
+          }
 
-                    if (outputKillStr.test(output)) {
-                        processKill(process);
-                    }
+          callback();
+        },
+      }),
+    );
 
-                    callback();
-                },
-            }),
-        );
+    process.stderr.pipe(
+      new Writable({
+        write(chunk, encoding, callback) {
+          const output = stripAnsi(chunk.toString("utf8"));
 
-        process
-            .then((result) => {
-                resolve(result);
-            })
-            .catch((error) => {
-                reject(error);
-            });
-    });
+          if (stderrKillStr && stderrKillStr.test(output)) {
+            isStderrDone = true;
+          } else if (!stderrKillStr && outputKillStr.test(output)) {
+            processKill(process);
+          }
+
+          if (isStdoutDone && isStderrDone) {
+            processKill(process);
+          }
+
+          callback();
+        },
+      }),
+    );
+
+    process
+      .then((result) => {
+        resolve(result);
+      })
+      .catch((error) => {
+        reject(error);
+      });
+  });
 };
 
 /**
@@ -151,240 +154,248 @@ const runWatch = (cwd, args = [], options = {}) => {
  * @param {string[]} answers answers to be passed to stdout for inquirer question
  */
 const runPromptWithAnswers = (location, args, answers) => {
-    const process = runAndGetProcess(location, args);
+  const process = runAndGetProcess(location, args);
 
-    process.stdin.setDefaultEncoding("utf-8");
+  process.stdin.setDefaultEncoding("utf-8");
 
-    const delay = 2000;
-    let outputTimeout;
-    let currentAnswer = 0;
+  const delay = 2000;
+  let outputTimeout;
+  let currentAnswer = 0;
 
-    const writeAnswer = (output) => {
-        if (!answers) {
-            process.stdin.write(output);
-            process.kill();
+  const writeAnswer = (output) => {
+    if (!answers) {
+      process.stdin.write(output);
+      processKill(process);
 
-            return;
+      return;
+    }
+
+    if (currentAnswer < answers.length) {
+      process.stdin.write(answers[currentAnswer]);
+      currentAnswer++;
+    }
+  };
+
+  process.stdout.pipe(
+    new Writable({
+      write(chunk, encoding, callback) {
+        const output = chunk.toString("utf8");
+
+        if (output) {
+          if (outputTimeout) {
+            clearTimeout(outputTimeout);
+          }
+
+          // we must receive new stdout, then have 2 seconds
+          // without any stdout before writing the next answer
+          outputTimeout = setTimeout(() => {
+            writeAnswer(output);
+          }, delay);
         }
 
-        if (currentAnswer < answers.length) {
-            process.stdin.write(answers[currentAnswer]);
-            currentAnswer++;
-        }
+        callback();
+      },
+    }),
+  );
+
+  return new Promise((resolve) => {
+    const obj = {};
+
+    let stdoutDone = false;
+    let stderrDone = false;
+
+    const complete = () => {
+      if (outputTimeout) {
+        clearTimeout(outputTimeout);
+      }
+
+      if (stdoutDone && stderrDone) {
+        processKill(process);
+        resolve(obj);
+      }
     };
 
     process.stdout.pipe(
-        new Writable({
-            write(chunk, encoding, callback) {
-                const output = chunk.toString("utf8");
+      concat((result) => {
+        stdoutDone = true;
+        obj.stdout = result.toString();
 
-                if (output) {
-                    if (outputTimeout) {
-                        clearTimeout(outputTimeout);
-                    }
-
-                    // we must receive new stdout, then have 2 seconds
-                    // without any stdout before writing the next answer
-                    outputTimeout = setTimeout(() => {
-                        writeAnswer(output);
-                    }, delay);
-                }
-
-                callback();
-            },
-        }),
+        complete();
+      }),
     );
 
-    return new Promise((resolve) => {
-        const obj = {};
+    process.stderr.pipe(
+      concat((result) => {
+        stderrDone = true;
+        obj.stderr = result.toString();
 
-        let stdoutDone = false;
-        let stderrDone = false;
-
-        const complete = () => {
-            if (outputTimeout) {
-                clearTimeout(outputTimeout);
-            }
-
-            if (stdoutDone && stderrDone) {
-                process.kill("SIGKILL");
-                resolve(obj);
-            }
-        };
-
-        process.stdout.pipe(
-            concat((result) => {
-                stdoutDone = true;
-                obj.stdout = result.toString();
-
-                complete();
-            }),
-        );
-
-        process.stderr.pipe(
-            concat((result) => {
-                stderrDone = true;
-                obj.stderr = result.toString();
-
-                complete();
-            }),
-        );
-    });
+        complete();
+      }),
+    );
+  });
 };
 
 const normalizeVersions = (output) => {
-    return output.replace(
-        /(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/gi,
-        "x.x.x",
-    );
+  return output.replace(
+    /(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/gi,
+    "x.x.x",
+  );
 };
 
 const normalizeCwd = (output) => {
-    return output
-        .replace(/\\/g, "/")
-        .replace(new RegExp(process.cwd().replace(/\\/g, "/"), "g"), "<cwd>");
+  return output
+    .replace(/\\/g, "/")
+    .replace(new RegExp(process.cwd().replace(/\\/g, "/"), "g"), "<cwd>");
 };
 
 const normalizeError = (output) => {
-    return output
-        .replace(/SyntaxError: .+/, "SyntaxError: <error-message>")
-        .replace(/\s+at .+(}|\)|\d)/gs, "\n    at stack");
+  return output
+    .replace(/SyntaxError: .+/, "SyntaxError: <error-message>")
+    .replace(/\s+at .+(}|\)|\d)/gs, "\n    at stack");
 };
 
 const normalizeStdout = (stdout) => {
-    if (typeof stdout !== "string") {
-        return stdout;
-    }
+  if (typeof stdout !== "string") {
+    return stdout;
+  }
 
-    if (stdout.length === 0) {
-        return stdout;
-    }
+  if (stdout.length === 0) {
+    return stdout;
+  }
 
-    let normalizedStdout = stripAnsi(stdout);
-    normalizedStdout = normalizeCwd(normalizedStdout);
-    normalizedStdout = normalizeVersions(normalizedStdout);
-    normalizedStdout = normalizeError(normalizedStdout);
+  let normalizedStdout = stripAnsi(stdout);
+  normalizedStdout = normalizeCwd(normalizedStdout);
+  normalizedStdout = normalizeVersions(normalizedStdout);
+  normalizedStdout = normalizeError(normalizedStdout);
 
-    return normalizedStdout;
+  return normalizedStdout;
 };
 
+const IPV4 = /(25[0-5]|2[0-4][0-9]|1?[0-9][0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}/g;
+const IPV6 = /([0-9a-f]){1,4}(:([0-9a-f]){1,4}){7}/gi;
+
 const normalizeStderr = (stderr) => {
-    if (typeof stderr !== "string") {
-        return stderr;
+  if (typeof stderr !== "string") {
+    return stderr;
+  }
+
+  if (stderr.length === 0) {
+    return stderr;
+  }
+
+  let normalizedStderr = stripAnsi(stderr);
+  normalizedStderr = normalizeCwd(normalizedStderr);
+
+  normalizedStderr = normalizedStderr.replace(IPV4, "x.x.x.x");
+  normalizedStderr = normalizedStderr.replace(IPV6, "[x:x:x:x:x:x:x:x]");
+  normalizedStderr = normalizedStderr.replace(/:[0-9]+\//g, ":<port>/");
+
+  if (!/On Your Network \(IPv6\)/.test(stderr)) {
+    // Github Actions doesn't' support IPv6 on ubuntu in some cases
+    normalizedStderr = normalizedStderr.split("\n");
+
+    const ipv4MessageIndex = normalizedStderr.findIndex((item) =>
+      /On Your Network \(IPv4\)/.test(item),
+    );
+
+    if (ipv4MessageIndex !== -1) {
+      normalizedStderr.splice(
+        ipv4MessageIndex + 1,
+        0,
+        "<i> [webpack-dev-server] On Your Network (IPv6): http://[x:x:x:x:x:x:x:x]:<port>/",
+      );
     }
 
-    if (stderr.length === 0) {
-        return stderr;
-    }
+    normalizedStderr = normalizedStderr.join("\n");
+  }
 
-    let normalizedStderr = stripAnsi(stderr);
-    normalizedStderr = normalizeCwd(normalizedStderr);
+  // the warning below is causing CI failure on some jobs
+  if (/Gracefully shutting down/.test(stderr)) {
+    normalizedStderr = normalizedStderr.replace(
+      "\n<i> [webpack-dev-server] Gracefully shutting down. To force exit, press ^C again. Please wait...",
+      "",
+    );
+  }
 
-    const networkIPv4 = internalIp.v4.sync();
+  normalizedStderr = normalizeVersions(normalizedStderr);
+  normalizedStderr = normalizeError(normalizedStderr);
 
-    if (networkIPv4) {
-        normalizedStderr = normalizedStderr.replace(
-            new RegExp(networkIPv4, "g"),
-            "<network-ip-v4>",
-        );
-    }
-
-    const networkIPv6 = internalIp.v6.sync();
-
-    if (networkIPv6) {
-        normalizedStderr = normalizedStderr.replace(
-            new RegExp(networkIPv6, "g"),
-            "<network-ip-v6>",
-        );
-    }
-
-    normalizedStderr = normalizedStderr.replace(/:[0-9]+\//g, ":<port>/");
-
-    if (!/On Your Network \(IPv6\)/.test(stderr)) {
-        // Github Actions doesnt' support IPv6 on ubuntu in some cases
-        normalizedStderr = normalizedStderr.split("\n");
-
-        const ipv4MessageIndex = normalizedStderr.findIndex((item) =>
-            /On Your Network \(IPv4\)/.test(item),
-        );
-
-        if (ipv4MessageIndex !== -1) {
-            normalizedStderr.splice(
-                ipv4MessageIndex + 1,
-                0,
-                "<i> [webpack-dev-server] On Your Network (IPv6): http://[<network-ip-v6>]:<port>/",
-            );
-        }
-
-        normalizedStderr = normalizedStderr.join("\n");
-    }
-
-    normalizedStderr = normalizeVersions(normalizedStderr);
-    normalizedStderr = normalizeError(normalizedStderr);
-
-    return normalizedStderr;
+  return normalizedStderr;
 };
 
 const getWebpackCliArguments = (startWith) => {
-    if (typeof startWith === "undefined") {
-        return cli.getArguments();
+  if (typeof startWith === "undefined") {
+    return cli.getArguments();
+  }
+
+  const result = {};
+
+  for (const [name, value] of Object.entries(cli.getArguments())) {
+    if (name.startsWith(startWith)) {
+      result[name] = value;
     }
+  }
 
-    const result = {};
-
-    for (const [name, value] of Object.entries(cli.getArguments())) {
-        if (name.startsWith(startWith)) {
-            result[name] = value;
-        }
-    }
-
-    return result;
+  return result;
 };
 
 const readFile = (path, options = {}) =>
-    new Promise((resolve, reject) => {
-        fs.readFile(path, options, (err, stats) => {
-            if (err) {
-                reject(err);
-            }
-            resolve(stats);
-        });
+  new Promise((resolve, reject) => {
+    fs.readFile(path, options, (err, stats) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(stats);
     });
+  });
 
 const readdir = (path) =>
-    new Promise((resolve, reject) => {
-        fs.readdir(path, (err, stats) => {
-            if (err) {
-                reject(err);
-            }
-            resolve(stats);
-        });
+  new Promise((resolve, reject) => {
+    fs.readdir(path, (err, stats) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(stats);
     });
+  });
+
+// cSpell:ignore Symbhas, ABCDEFGHNR, Vfgcti
+const urlAlphabet = "ModuleSymbhasOwnPr-0123456789ABCDEFGHNRVfgctiUvz_KqYTJkLxpZXIjQW";
+
+const uuid = (size = 21) => {
+  let id = "";
+  let i = size;
+
+  while (i--) {
+    // `| 0` is more compact and faster than `Math.floor()`.
+    id += urlAlphabet[(Math.random() * 64) | 0];
+  }
+
+  return id;
+};
 
 const uniqueDirectoryForTest = async () => {
-    const result = path.resolve(os.tmpdir(), Date.now().toString());
+  const result = path.resolve(os.tmpdir(), uuid());
 
-    if (!fs.existsSync(result)) {
-        fs.mkdirSync(result);
-    }
+  if (!fs.existsSync(result)) {
+    fs.mkdirSync(result);
+  }
 
-    return result;
+  return result;
 };
 
 module.exports = {
-    run,
-    runAndGetProcess,
-    runWatch,
-    runPromptWithAnswers,
-    isWebpack5,
-    isDevServer4,
-    isWindows,
-    normalizeStderr,
-    normalizeStdout,
-    uniqueDirectoryForTest,
-    readFile,
-    readdir,
-    hyphenToUpperCase,
-    processKill,
-    getWebpackCliArguments,
+  run,
+  runAndGetProcess,
+  runWatch,
+  runPromptWithAnswers,
+  isWindows,
+  normalizeStderr,
+  normalizeStdout,
+  uniqueDirectoryForTest,
+  readFile,
+  readdir,
+  hyphenToUpperCase,
+  processKill,
+  getWebpackCliArguments,
 };

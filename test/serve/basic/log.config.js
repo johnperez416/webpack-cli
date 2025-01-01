@@ -1,15 +1,11 @@
-const { isDevServer4 } = require("../../utils/test-utils");
-
 module.exports = {
-    mode: "development",
-    infrastructureLogging: {
-        level: "log",
+  mode: "development",
+  infrastructureLogging: {
+    level: "log",
+  },
+  devServer: {
+    client: {
+      logging: "info",
     },
-    devServer: isDevServer4
-        ? {
-              client: {
-                  logging: "info",
-              },
-          }
-        : {},
+  },
 };

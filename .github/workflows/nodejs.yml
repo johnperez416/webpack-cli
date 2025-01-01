@@ -4,15 +4,13 @@ on:
   push:
     branches:
       - master
-      - next
   pull_request:
     branches:
       - master
       - next
-  workflow_dispatch:
-    inputs:
-      tags:
-        description: "Test description"
+
+permissions:
+  contents: read
 
 jobs:
   lint:
@@ -20,25 +18,27 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    concurrency:
+      group: lint-${{ github.ref }}
+      cancel-in-progress: true
+
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node-version: [12.x]
+        node-version: [lts/*]
         webpack-version: [latest]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Using Node v${{ matrix.node-version }}
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+          cache: "yarn"
 
       - name: Install dependencies
-        run: yarn
-
-      - name: Bootstrap
-        run: yarn lerna bootstrap
+        run: yarn --frozen-lockfile
 
       - name: Build
         run: yarn build
@@ -47,49 +47,72 @@ jobs:
         run: yarn lint
 
   build:
-    name: Tests and Coverage - ${{ matrix.os }} - Node v${{ matrix.node-version }}, Webpack ${{ matrix.webpack-version }}, DevServer ${{ matrix.dev-server-version }}
+    name: Tests and Coverage - ${{ matrix.os }} - Node v${{ matrix.node-version }}, Webpack ${{ matrix.webpack-version }}, DevServer ${{ matrix.dev-server-version }} (${{ matrix.shard }})
 
     runs-on: ${{ matrix.os }}
+
+    concurrency:
+      group: build-${{ matrix.os }}-v${{ matrix.node-version }}-${{ matrix.webpack-version }}-${{ matrix.dev-server-version }}-${{ matrix.shard }}-${{ github.ref }}
+      cancel-in-progress: true
 
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node-version: [10.x, 12.x, 14.x, 16.x]
-        webpack-version: [4, latest]
-        dev-server-version: [latest, next]
-        exclude:
-          - node-version: 10.x
-            dev-server-version: next
+        node-version: [18.x, 20.x, 22.x, 23.x]
+        shard: ["1/4", "2/4", "3/4", "4/4"]
+        webpack-version: [latest]
+        dev-server-version: [latest]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Using Node v${{ matrix.node-version }}
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+          cache: "yarn"
 
-      - name: Restore lerna cache
-        id: cache
-        uses: actions/cache@v2
+      - uses: pnpm/action-setup@v4
         with:
-          path: |
-            node_modules
-            */*/node_modules
-          key: c-${{ runner.os }}-${{ matrix.webpack-version }}-yarn-${{ hashFiles('**/yarn.lock', './yarn.lock') }}
-          restore-keys: |
-            c-${{ runner.os }}-${{ matrix.webpack-version }}-yarn-
+          version: 9
 
       - name: Install dependencies
-        run: yarn
+        run: yarn --frozen-lockfile --ignore-engines --ignore-scripts
 
-      - name: Install webpack ${{ matrix.webpack-version }}
-        run: yarn add -W webpack@${{ matrix.webpack-version }}
+      - name: Prepare environment for tests
+        run: yarn build:ci
 
-      - name: Install webpack-dev-server ${{ matrix.webpack-version }}
-        run: yarn add -W webpack-dev-server@${{ matrix.dev-server-version }}
+      - name: Run tests and generate coverage
+        run: yarn test:coverage --ci --shard=${{ matrix.shard }}
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+
+  smoketests:
+    name: Smoketests - ${{ matrix.os }} - Node v${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: smoketests-${{ github.ref }}
+      cancel-in-progress: true
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node-version: [lts/*]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Using Node v${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: yarn --frozen-lockfile --ignore-engines
 
       - name: Prepare environment for tests
         run: yarn build:ci
@@ -97,30 +120,26 @@ jobs:
       - name: Run smoketests
         run: yarn test:smoketests
 
-      - name: Run tests and generate coverage
-        run: |
-          yarn prepsuite
-          yarn test:coverage
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
-
   commitlint:
     name: Lint Commit Messages
     runs-on: ubuntu-latest
+    concurrency:
+      group: commitlint-${{ github.ref }}
+      cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v1
+      - uses: actions/setup-node@v4
         with:
-          node-version: "12.x"
+          node-version: "lts/*"
+          cache: "yarn"
 
-      - run: npm install
+      - run: yarn --frozen-lockfile
 
-      - name: conventional-changelog-lint-config-cz
-        # $GITHUB_WORKSPACE is the path to your repository
-        run: echo "NODE_PATH=$GITHUB_WORKSPACE/node_modules" >> $GITHUB_ENV
-
-      - uses: wagoid/commitlint-github-action@v2
+      - name: Validate PR commits with commitlint
+        if: github.event_name == 'pull_request'
+        run: npx commitlint --from ${{ github.event.pull_request.head.sha }}~${{ github.event.pull_request.commits }} --to ${{ github.event.pull_request.head.sha }} --verbose
+        env:
+          NODE_PATH: ${{ github.workspace }}/node_modules

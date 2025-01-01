@@ -1,63 +1,65 @@
+import { type IWebpackCLI } from "webpack-cli";
+
+const WEBPACK_PACKAGE = process.env.WEBPACK_PACKAGE || "webpack";
+
 class ConfigTestCommand {
-    // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
-    async apply(cli: any): Promise<void> {
-        const { logger, webpack } = cli;
+  async apply(cli: IWebpackCLI): Promise<void> {
+    await cli.makeCommand(
+      {
+        name: "configtest [config-path]",
+        alias: "t",
+        description: "Validate a webpack configuration.",
+        pkg: "@webpack-cli/configtest",
+        dependencies: [WEBPACK_PACKAGE],
+      },
+      [],
+      async (configPath: string | undefined): Promise<void> => {
+        cli.webpack = await cli.loadWebpack();
 
-        await cli.makeCommand(
-            {
-                name: "configtest [config-path]",
-                alias: "t",
-                description: "Validate a webpack configuration.",
-                pkg: "@webpack-cli/configtest",
-            },
-            [],
-            async (configPath: string | undefined): Promise<void> => {
-                const config = await cli.resolveConfig(configPath ? { config: [configPath] } : {});
-                const configPaths = new Set<string>();
+        const config = await cli.loadConfig(configPath ? { config: [configPath] } : {});
+        const configPaths = new Set<string>();
 
-                if (Array.isArray(config.options)) {
-                    config.options.forEach((options) => {
-                        if (config.path.get(options)) {
-                            configPaths.add(config.path.get(options));
-                        }
-                    });
-                } else {
-                    if (config.path.get(config.options)) {
-                        configPaths.add(config.path.get(config.options));
-                    }
-                }
+        if (Array.isArray(config.options)) {
+          config.options.forEach((options) => {
+            const loadedConfigPaths = config.path.get(options);
 
-                if (configPaths.size === 0) {
-                    logger.error("No configuration found.");
-                    process.exit(2);
-                }
+            if (loadedConfigPaths) {
+              loadedConfigPaths.forEach((path) => configPaths.add(path));
+            }
+          });
+        } else {
+          if (config.path.get(config.options)) {
+            const loadedConfigPaths = config.path.get(config.options);
 
-                logger.info(`Validate '${Array.from(configPaths).join(" ,")}'.`);
+            if (loadedConfigPaths) {
+              loadedConfigPaths.forEach((path) => configPaths.add(path));
+            }
+          }
+        }
 
-                try {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const error: any = webpack.validate(config.options);
+        if (configPaths.size === 0) {
+          cli.logger.error("No configuration found.");
+          process.exit(2);
+        }
 
-                    // TODO remove this after drop webpack@4
-                    if (error && error.length > 0) {
-                        throw new webpack.WebpackOptionsValidationError(error);
-                    }
-                } catch (error) {
-                    if (cli.isValidationError(error)) {
-                        logger.error(error.message);
-                    } else {
-                        logger.error(error);
-                    }
+        cli.logger.info(`Validate '${Array.from(configPaths).join(" ,")}'.`);
 
-                    process.exit(2);
-                }
+        try {
+          cli.webpack.validate(config.options);
+        } catch (error) {
+          if (cli.isValidationError(error as Error)) {
+            cli.logger.error((error as Error).message);
+          } else {
+            cli.logger.error(error);
+          }
 
-                logger.success(
-                    "There are no validation errors in the given webpack configuration.",
-                );
-            },
-        );
-    }
+          process.exit(2);
+        }
+
+        cli.logger.success("There are no validation errors in the given webpack configuration.");
+      },
+    );
+  }
 }
 
 export default ConfigTestCommand;
