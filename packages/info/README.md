@@ -2,6 +2,10 @@
 
 [![NPM Downloads][downloads]][downloads-url]
 
+> **Note**
+>
+> This package is used by webpack-cli under-the-hood and is not intended for installation
+
 ## Description
 
 This package returns a set of information related to the local environment.
@@ -32,9 +36,10 @@ webpack info [options]
 
 #### Output format
 
-| Flag                                | Description                             | Type   |
-| ----------------------------------- | --------------------------------------- | ------ |
-| `-o, --output < json or markdown >` | To get the output in a specified format | string |
+| Flag                                  | Description                             | Type   |
+| ------------------------------------- | --------------------------------------- | ------ |
+| `-o, --output < json or markdown >`   | To get the output in a specified format | string |
+| `-a, --additional-package <value...>` | Adds additional packages to the output  | string |
 
 _Not supported for config_
 

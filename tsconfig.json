@@ -6,6 +6,7 @@
     "target": "es2017",
     "module": "commonjs",
     "lib": ["es6", "es2017"],
+    "strict": true,
     "rootDir": ".",
     "outDir": "lib",
     "moduleResolution": "node",
@@ -21,7 +22,7 @@
   },
   "references": [
     {
-      "path": "packages/generators"
+      "path": "packages/configtest"
     },
     {
       "path": "packages/info"
@@ -30,7 +31,10 @@
       "path": "packages/serve"
     },
     {
-      "path": "packages/configtest"
+      "path": "packages/webpack-cli"
+    },
+    {
+      "path": "packages/create-webpack-app"
     }
   ]
 }
